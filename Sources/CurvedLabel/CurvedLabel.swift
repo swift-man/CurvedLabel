@@ -1,0 +1,148 @@
+#if canImport(UIKit)
+import CoreText
+import UIKit
+
+/// A `UILabel` subclass that draws attributed text along a circular arc.
+public final class CurvedLabel: UILabel {
+  /// The radius of the circular text path, measured in points.
+  public var radius: CGFloat = 0.0 {
+    didSet {
+      if radius != oldValue {
+        setNeedsDisplay()
+      }
+    }
+  }
+
+  /// The rotation offset in degrees. `0` starts text at the top of the circle.
+  public var rotation: CGFloat = 0.0 {
+    didSet {
+      if rotation != oldValue {
+        setNeedsDisplay()
+      }
+    }
+  }
+
+  /// Draws text inside the radius when `true`, or outside the radius when `false`.
+  public var textInside: Bool = false {
+    didSet {
+      if textInside != oldValue {
+        setNeedsDisplay()
+      }
+    }
+  }
+
+  public required init?(coder: NSCoder) {
+    super.init(coder: coder)
+  }
+
+  public override init(frame: CGRect = .zero) {
+    super.init(frame: frame)
+  }
+
+  public override func draw(_ rect: CGRect) {
+    let radius = Swift.abs(self.radius)
+    guard radius > 0.0 else { return }
+
+    guard let attributedText = renderedAttributedText,
+          attributedText.length > 0,
+          let context = UIGraphicsGetCurrentContext() else {
+      return
+    }
+
+    context.saveGState()
+    defer { context.restoreGState() }
+
+    // Setup general affine transform.
+    var t0 = context.ctm
+    let xScaleFactor = t0.a > 0.0 ? t0.a : -t0.a
+    let yScaleFactor = t0.d > 0.0 ? t0.d : -t0.d
+    t0 = t0.inverted()
+
+    if xScaleFactor != 1.0 || yScaleFactor != 1.0 {
+      t0 = t0.scaledBy(x: xScaleFactor, y: yScaleFactor)
+    }
+
+    context.concatenate(t0)
+    context.textMatrix = .identity
+
+    let attributedStringRef = attributedText as CFAttributedString
+    let line = CTLineCreateWithAttributedString(attributedStringRef)
+    let glyphArcInfo = CurvedLabelGlyphArcCalculator.arcInfo(for: line, radius: radius)
+    guard !glyphArcInfo.isEmpty else { return }
+
+    // Move the origin to the center of the view so the text can run around.
+    context.translateBy(x: rect.midX, y: rect.midY)
+
+    // Rotate the context 90 degrees counterclockwise.
+    context.rotate(by: (rotation + 90.0) * (CGFloat.pi / 180.0))
+
+    var textPosition = CGPoint(
+      x: 0.0,
+      y: textInside ? -radius : radius
+    )
+    context.textPosition = CGPoint(x: textPosition.x, y: textPosition.y)
+
+    let runArray = CTLineGetGlyphRuns(line)
+    let runCount = CFArrayGetCount(runArray)
+    var glyphOffset: CFIndex = 0
+
+    for runIndex in 0..<runCount {
+      let run = unsafeBitCast(
+        CFArrayGetValueAtIndex(runArray, runIndex),
+        to: CTRun.self
+      )
+      let runGlyphCount = CTRunGetGlyphCount(run)
+
+      for runGlyphIndex in 0..<runGlyphCount {
+        let glyphRange = CFRange(location: runGlyphIndex, length: 1)
+        let infoIndex = Int(runGlyphIndex + glyphOffset)
+        var glyphAngle = glyphArcInfo[infoIndex].angle
+
+        if !textInside {
+          glyphAngle = -glyphAngle
+        }
+
+        context.rotate(by: glyphAngle)
+
+        // Center this glyph by moving left by half its width.
+        let glyphWidth = glyphArcInfo[infoIndex].width
+        let halfGlyphWidth = glyphWidth / 2.0
+        let positionForThisGlyph = CGPoint(
+          x: textPosition.x - halfGlyphWidth,
+          y: textPosition.y
+        )
+
+        // Glyphs are positioned relative to the text position for the line,
+        // so offset text position leftwards by this glyph's width.
+        textPosition.x -= glyphWidth
+
+        var textMatrix = CTRunGetTextMatrix(run)
+        textMatrix.tx = positionForThisGlyph.x
+        textMatrix.ty = positionForThisGlyph.y
+        context.textMatrix = textMatrix
+        CTRunDraw(run, context, glyphRange)
+      }
+
+      glyphOffset += runGlyphCount
+    }
+  }
+
+  private var renderedAttributedText: NSAttributedString? {
+    if let attributedText, attributedText.length > 0 {
+      return attributedText
+    }
+
+    guard let text, !text.isEmpty else { return nil }
+
+    var attributes: [NSAttributedString.Key: Any] = [:]
+    if let font {
+      attributes[.font] = font
+    }
+    if let textColor {
+      attributes[.foregroundColor] = textColor
+    }
+
+    return NSAttributedString(string: text, attributes: attributes)
+  }
+}
+#endif
