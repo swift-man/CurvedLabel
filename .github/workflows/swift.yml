@@ -1,0 +1,29 @@
+name: Swift
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build iOS
+        run: xcodebuild build -scheme CurvedLabel -destination 'generic/platform=iOS'
+
+      - name: Test iOS
+        run: |
+          destination="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ { print "platform=iOS Simulator,id="$2; exit }')"
+          if [ -z "$destination" ]; then
+            echo "No available iPhone simulator found"
+            exit 1
+          fi
+          xcodebuild test -scheme CurvedLabel -destination "$destination"
+
+      - name: Run tests
+        run: swift test -v
