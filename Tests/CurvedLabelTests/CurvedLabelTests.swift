@@ -68,6 +68,22 @@ struct CurvedLabelTests {
     #expect(label.rotation == 0)
     #expect(label.textInside == false)
   }
+
+  @Test
+  @MainActor
+  func zeroRadiusFallsBackToPlainLabelRendering() {
+    let label = CurvedLabel(frame: CGRect(x: 0, y: 0, width: 160, height: 60))
+    label.backgroundColor = .clear
+    label.font = .systemFont(ofSize: 32)
+    label.textColor = .black
+    label.text = "Hello"
+
+    let image = UIGraphicsImageRenderer(size: label.bounds.size).image { _ in
+      label.draw(label.bounds)
+    }
+
+    #expect(image.hasVisiblePixels)
+  }
 #endif
 }
 
@@ -76,3 +92,30 @@ private extension CGFloat {
     Swift.abs(self - other) <= tolerance
   }
 }
+
+#if canImport(UIKit)
+private extension UIImage {
+  var hasVisiblePixels: Bool {
+    guard let cgImage else { return false }
+
+    let width = cgImage.width
+    let height = cgImage.height
+    var pixels = [UInt8](repeating: 0, count: width * height * 4)
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+    guard let context = CGContext(
+      data: &pixels,
+      width: width,
+      height: height,
+      bitsPerComponent: 8,
+      bytesPerRow: width * 4,
+      space: colorSpace,
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ) else {
+      return false
+    }
+
+    context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+    return stride(from: 3, to: pixels.count, by: 4).contains { pixels[$0] > 0 }
+  }
+}
+#endif

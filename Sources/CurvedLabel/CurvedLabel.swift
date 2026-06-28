@@ -41,11 +41,15 @@ public final class CurvedLabel: UILabel {
 
   public override func draw(_ rect: CGRect) {
     let radius = Swift.abs(self.radius)
-    guard radius > 0.0 else { return }
+    guard radius > 0.0 else {
+      super.draw(rect)
+      return
+    }
 
     guard let attributedText = renderedAttributedText,
           attributedText.length > 0,
           let context = UIGraphicsGetCurrentContext() else {
+      super.draw(rect)
       return
     }
 
@@ -71,7 +75,7 @@ public final class CurvedLabel: UILabel {
     guard !glyphArcInfo.isEmpty else { return }
 
     // Move the origin to the center of the view so the text can run around.
-    context.translateBy(x: rect.midX, y: rect.midY)
+    context.translateBy(x: bounds.midX, y: bounds.midY)
 
     // Rotate the context 90 degrees counterclockwise.
     context.rotate(by: (rotation + 90.0) * (CGFloat.pi / 180.0))
@@ -82,20 +86,17 @@ public final class CurvedLabel: UILabel {
     )
     context.textPosition = CGPoint(x: textPosition.x, y: textPosition.y)
 
-    let runArray = CTLineGetGlyphRuns(line)
-    let runCount = CFArrayGetCount(runArray)
+    let runs = CTLineGetGlyphRuns(line) as! [CTRun]
     var glyphOffset: CFIndex = 0
 
-    for runIndex in 0..<runCount {
-      let run = unsafeBitCast(
-        CFArrayGetValueAtIndex(runArray, runIndex),
-        to: CTRun.self
-      )
+    for run in runs {
       let runGlyphCount = CTRunGetGlyphCount(run)
 
       for runGlyphIndex in 0..<runGlyphCount {
         let glyphRange = CFRange(location: runGlyphIndex, length: 1)
         let infoIndex = Int(runGlyphIndex + glyphOffset)
+        guard infoIndex < glyphArcInfo.count else { return }
+
         var glyphAngle = glyphArcInfo[infoIndex].angle
 
         if !textInside {

@@ -2,7 +2,7 @@
 
 UIKit label for drawing attributed text along a circular path.
 
-![Badge](https://img.shields.io/badge/swift-white.svg?style=flat-square&logo=Swift)
+![Badge](https://img.shields.io/badge/Swift-6.0%2B-F05138?style=flat-square&logo=Swift&logoColor=white)
 ![Badge](https://img.shields.io/badge/UIKit-2396F3.svg?style=flat-square&logo=Apple&logoColor=white)
 ![Badge - Version](https://img.shields.io/badge/Version-1.0.0-1177AA?style=flat-square)
 ![Badge - Swift Package Manager](https://img.shields.io/badge/SPM-compatible-orange?style=flat-square)

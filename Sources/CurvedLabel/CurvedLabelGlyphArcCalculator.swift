@@ -49,15 +49,10 @@ enum CurvedLabelGlyphArcCalculator {
   }
 
   private static func glyphWidths(in line: CTLine) -> [CGFloat] {
-    let runArray = CTLineGetGlyphRuns(line)
-    let runCount = CFArrayGetCount(runArray)
+    let runs = CTLineGetGlyphRuns(line) as! [CTRun]
     var glyphWidths: [CGFloat] = []
 
-    for runIndex in 0..<runCount {
-      let run = unsafeBitCast(
-        CFArrayGetValueAtIndex(runArray, runIndex),
-        to: CTRun.self
-      )
+    for run in runs {
       let runGlyphCount = CTRunGetGlyphCount(run)
 
       for runGlyphIndex in 0..<runGlyphCount {

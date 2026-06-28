@@ -24,5 +24,5 @@ let package = Package(
       path: "Tests/CurvedLabelTests"
     )
   ],
-  swiftLanguageModes: [.v5]
+  swiftLanguageModes: [.v6]
 )

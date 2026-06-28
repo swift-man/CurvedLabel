@@ -9,6 +9,28 @@ DESTINATION="${DESTINATION:-generic/platform=iOS}"
 BUNDLE_VERSION="${BUNDLE_VERSION:-1.0.0}"
 DOCC="$(xcrun --find docc)"
 
+require_safe_delete_path() {
+  path="$1"
+  name="$2"
+
+  case "$path" in
+    ""|"/"|".")
+      echo "error: unsafe $name: $path" >&2
+      exit 1
+      ;;
+    /*)
+      echo "error: $name must be relative to the package root: $path" >&2
+      exit 1
+      ;;
+    *..*)
+      echo "error: $name must not contain '..': $path" >&2
+      exit 1
+      ;;
+  esac
+}
+
+require_safe_delete_path "$DERIVED_DATA_PATH" "DERIVED_DATA_PATH"
+require_safe_delete_path "$DOCS_OUTPUT_PATH" "DOCS_OUTPUT_PATH"
 rm -rf "$DERIVED_DATA_PATH" "$DOCS_OUTPUT_PATH"
 
 xcodebuild docbuild \
