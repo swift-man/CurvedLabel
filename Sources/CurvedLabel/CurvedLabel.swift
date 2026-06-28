@@ -53,6 +53,16 @@ public final class CurvedLabel: UILabel {
       return
     }
 
+    let attributedStringRef = attributedText as CFAttributedString
+    let line = CTLineCreateWithAttributedString(attributedStringRef)
+    let glyphArcInfo = CurvedLabelGlyphArcCalculator.arcInfo(for: line, radius: radius)
+    guard !glyphArcInfo.isEmpty,
+          let runs = CTLineGetGlyphRuns(line) as? [CTRun],
+          !runs.isEmpty else {
+      super.draw(rect)
+      return
+    }
+
     context.saveGState()
     defer { context.restoreGState() }
 
@@ -69,11 +79,6 @@ public final class CurvedLabel: UILabel {
     context.concatenate(t0)
     context.textMatrix = .identity
 
-    let attributedStringRef = attributedText as CFAttributedString
-    let line = CTLineCreateWithAttributedString(attributedStringRef)
-    let glyphArcInfo = CurvedLabelGlyphArcCalculator.arcInfo(for: line, radius: radius)
-    guard !glyphArcInfo.isEmpty else { return }
-
     // Move the origin to the center of the view so the text can run around.
     context.translateBy(x: bounds.midX, y: bounds.midY)
 
@@ -86,7 +91,6 @@ public final class CurvedLabel: UILabel {
     )
     context.textPosition = CGPoint(x: textPosition.x, y: textPosition.y)
 
-    let runs = CTLineGetGlyphRuns(line) as! [CTRun]
     var glyphOffset: CFIndex = 0
 
     for run in runs {
