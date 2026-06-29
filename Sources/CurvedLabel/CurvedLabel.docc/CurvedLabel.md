@@ -15,9 +15,9 @@ circle diameter for `intrinsicContentSize`, plus the rendered text's line height
 when text is drawn outside the circle. `rotation` offsets the path in degrees,
 and `textInside` chooses whether glyphs sit inside or outside the circle.
 
-When `attributedText` is set, its font and foreground color attributes drive
-rendering. `font` and `textColor` are used for plain `text` fallback and for
-attributed ranges that omit a font.
+When `attributedText` is set, its own attributes drive rendering. `font` and
+`textColor` are used for plain `text` fallback; `font` also defines intrinsic
+sizing for attributed ranges that omit a font.
 
 ## Installation
 

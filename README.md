@@ -41,9 +41,9 @@ negative value is assigned. When `radius` is greater than `0`, Auto Layout uses
 at least the circle diameter for `intrinsicContentSize`, plus the rendered
 text's line height when text is drawn outside the circle. `rotation` is measured
 in degrees, and `textInside` switches the glyphs to the inner side of the
-circle. When `attributedText` is set, its font and foreground color attributes
-drive rendering; `font` and `textColor` are used for plain `text` fallback and
-for attributed ranges that omit a font.
+circle. When `attributedText` is set, its own attributes drive rendering.
+`font` and `textColor` are used for plain `text` fallback; `font` also defines
+intrinsic sizing for attributed ranges that omit a font.
 
 ## Documentation
 
