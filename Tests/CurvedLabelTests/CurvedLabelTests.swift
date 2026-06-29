@@ -49,7 +49,20 @@ struct CurvedLabelTests {
                                                        radius: 100)
     let firstGlyphHalfWidthAngle: CGFloat = 0.05
     let centerToCenterAngles: CGFloat = 0.15 + 0.25
-    let maxAngle = firstGlyphHalfWidthAngle + centerToCenterAngles
+    let trailingGlyphHalfWidthAngle: CGFloat = 0.15
+    let maxAngle = firstGlyphHalfWidthAngle + centerToCenterAngles + trailingGlyphHalfWidthAngle
+    let expectedFirstAngle = firstGlyphHalfWidthAngle + (CGFloat.pi - maxAngle) / 2.0
+
+    #expect(arcInfo[0].angle.isApproximatelyEqual(to: expectedFirstAngle))
+  }
+
+  @Test
+  func firstGlyphAngleCentersSingleGlyphAcrossTheTopHalfCircle() {
+    let arcInfo = CurvedLabelGlyphArcCalculator.arcInfo(forGlyphWidths: [20],
+                                                       radius: 100)
+    let firstGlyphHalfWidthAngle: CGFloat = 0.1
+    let trailingGlyphHalfWidthAngle: CGFloat = 0.1
+    let maxAngle = firstGlyphHalfWidthAngle + trailingGlyphHalfWidthAngle
     let expectedFirstAngle = firstGlyphHalfWidthAngle + (CGFloat.pi - maxAngle) / 2.0
 
     #expect(arcInfo[0].angle.isApproximatelyEqual(to: expectedFirstAngle))
@@ -75,6 +88,50 @@ struct CurvedLabelTests {
 
     #expect(!runs.isEmpty)
     #expect(arcInfo.count == CurvedLabelGlyphArcCalculator.glyphCount(in: runs))
+  }
+
+  @Test
+  func glyphWidthsMatchCoreTextTypographicWidths() {
+    let font = CTFontCreateWithName("Helvetica" as CFString, 18, nil)
+    let attributedString = NSAttributedString(
+      string: "Hello World!",
+      attributes: [
+        kCTFontAttributeName as NSAttributedString.Key: font
+      ]
+    )
+    let line = CTLineCreateWithAttributedString(attributedString as CFAttributedString)
+
+    let advanceWidths = CurvedLabelGlyphArcCalculator.glyphWidths(in: line)
+    let typographicWidths = Self.typographicGlyphWidths(in: line)
+
+    #expect(!advanceWidths.isEmpty)
+    #expect(advanceWidths.count == typographicWidths.count)
+    for (advanceWidth, typographicWidth) in zip(advanceWidths, typographicWidths) {
+      #expect(advanceWidth.isApproximatelyEqual(to: typographicWidth))
+    }
+  }
+
+  private static func typographicGlyphWidths(in line: CTLine) -> [CGFloat] {
+    guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return [] }
+    var widths: [CGFloat] = []
+
+    for run in runs {
+      for glyphIndex in 0..<CTRunGetGlyphCount(run) {
+        widths.append(
+          CGFloat(
+            CTRunGetTypographicBounds(
+              run,
+              CFRange(location: glyphIndex, length: 1),
+              nil,
+              nil,
+              nil
+            )
+          )
+        )
+      }
+    }
+
+    return widths
   }
 
 #if canImport(UIKit)
@@ -164,6 +221,26 @@ struct CurvedLabelTests {
 
   @Test
   @MainActor
+  func missingAttributedTextFontRangeFallsBackToLabelFontForIntrinsicSize() {
+    let label = CurvedLabel()
+    label.font = .systemFont(ofSize: 42)
+    label.radius = 80
+
+    let attributedText = NSMutableAttributedString(string: "Hi")
+    attributedText.addAttribute(
+      .font,
+      value: UIFont.systemFont(ofSize: 12),
+      range: NSRange(location: 0, length: 1)
+    )
+    label.attributedText = attributedText
+
+    let expectedDiameter = ceil((label.radius + ceil(label.font.lineHeight)) * 2.0)
+    #expect(label.intrinsicContentSize.width == expectedDiameter)
+    #expect(label.intrinsicContentSize.height == expectedDiameter)
+  }
+
+  @Test
+  @MainActor
   func zeroRadiusRestoresBaseIntrinsicSize() {
     let label = CurvedLabel()
     label.text = "Hi"
@@ -224,7 +301,9 @@ struct CurvedLabelTests {
     }
 
     #expect(image.hasVisiblePixels)
-    #expect(image.differsVisibly(from: plainImage))
+    #expect(image.differsVisibly(from: plainImage,
+                                 channelTolerance: 8,
+                                 minimumDifferingPixels: 32))
   }
 #endif
 }
@@ -275,25 +354,29 @@ private extension UIImage {
     return stride(from: 3, to: pixels.count, by: 4).contains { pixels[$0] > 0 }
   }
 
-  func differsVisibly(from image: UIImage) -> Bool {
+  func differsVisibly(from image: UIImage,
+                      channelTolerance: UInt8 = 8,
+                      minimumDifferingPixels: Int = 32) -> Bool {
     guard let lhs = rgbaPixels,
           let rhs = image.rgbaPixels else {
+      Issue.record("Unable to extract RGBA pixels for image comparison.")
       return false
     }
     guard lhs.count == rhs.count else { return true }
 
+    let tolerance = Int(channelTolerance)
     var differingPixels = 0
     for offset in stride(from: 0, to: lhs.count, by: 4) {
-      let differs = Swift.abs(Int(lhs[offset]) - Int(rhs[offset])) > 8
-        || Swift.abs(Int(lhs[offset + 1]) - Int(rhs[offset + 1])) > 8
-        || Swift.abs(Int(lhs[offset + 2]) - Int(rhs[offset + 2])) > 8
-        || Swift.abs(Int(lhs[offset + 3]) - Int(rhs[offset + 3])) > 8
+      let differs = Swift.abs(Int(lhs[offset]) - Int(rhs[offset])) > tolerance
+        || Swift.abs(Int(lhs[offset + 1]) - Int(rhs[offset + 1])) > tolerance
+        || Swift.abs(Int(lhs[offset + 2]) - Int(rhs[offset + 2])) > tolerance
+        || Swift.abs(Int(lhs[offset + 3]) - Int(rhs[offset + 3])) > tolerance
 
       if differs {
         differingPixels += 1
       }
 
-      if differingPixels >= 32 {
+      if differingPixels >= minimumDifferingPixels {
         return true
       }
     }

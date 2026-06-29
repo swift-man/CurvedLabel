@@ -12,18 +12,58 @@ import UIKit
 
 /// A `UILabel` subclass that draws attributed text along a circular arc.
 public final class CurvedLabel: UILabel {
+  public override var text: String? {
+    didSet {
+      guard text != oldValue else { return }
+      invalidateRenderedText(needsIntrinsicSize: true)
+    }
+  }
+
+  public override var attributedText: NSAttributedString? {
+    didSet {
+      guard !Self.immutableAttributedText(attributedText,
+                                          isEqualTo: oldValue) else { return }
+      invalidateRenderedText(needsIntrinsicSize: true)
+    }
+  }
+
+  public override var font: UIFont! {
+    didSet {
+      guard font != oldValue else { return }
+      invalidateRenderedText(needsIntrinsicSize: true)
+    }
+  }
+
+  public override var textColor: UIColor! {
+    didSet {
+      guard textColor != oldValue else { return }
+
+      if attributedText == nil {
+        invalidateRenderedText(needsIntrinsicSize: false)
+      } else {
+        // Attributed text owns foreground attributes; the cached layout can be reused.
+        setNeedsDisplay()
+      }
+    }
+  }
+
+  private var storedRadius: CGFloat = 0.0
+
   /// The radius of the circular text path, measured in points.
   ///
   /// Negative values are clamped to `0`.
-  public var radius: CGFloat = 0.0 {
-    didSet {
-      if radius < 0.0 {
-        radius = 0.0
+  public var radius: CGFloat {
+    get {
+      storedRadius
+    }
+    set {
+      let clampedRadius = Swift.max(newValue, 0.0)
+      guard storedRadius != clampedRadius else {
+        return
       }
-      if radius != oldValue {
-        invalidateIntrinsicContentSize()
-        setNeedsDisplay()
-      }
+
+      storedRadius = clampedRadius
+      invalidateRenderedText(needsIntrinsicSize: true)
     }
   }
 
@@ -45,6 +85,17 @@ public final class CurvedLabel: UILabel {
       }
     }
   }
+
+  private struct LayoutCache {
+    let attributedText: NSAttributedString
+    let radius: CGFloat
+    // Keep the line alive for the cached CoreText run references.
+    let line: CTLine
+    let runs: [CTRun]
+    let glyphArcInfo: [CurvedLabelGlyphArcInfo]
+  }
+
+  private var cachedLayout: LayoutCache?
 
   public required init?(coder: NSCoder) {
     super.init(coder: coder)
@@ -81,19 +132,14 @@ public final class CurvedLabel: UILabel {
       return
     }
 
-    let attributedStringRef = attributedText as CFAttributedString
-    let line = CTLineCreateWithAttributedString(attributedStringRef)
-    let glyphArcInfo = CurvedLabelGlyphArcCalculator.arcInfo(for: line, radius: radius)
-    guard !glyphArcInfo.isEmpty,
-          let runs = CTLineGetGlyphRuns(line) as? [CTRun],
-          !runs.isEmpty else {
+    guard let layout = layout(for: attributedText, radius: radius) else {
       super.draw(rect)
       return
     }
 
     // arcInfo is derived from these runs today; keep the guard so future
     // calculator changes fail gracefully instead of partially rendering glyphs.
-    guard glyphArcInfo.count == CurvedLabelGlyphArcCalculator.glyphCount(in: runs) else {
+    guard layout.glyphArcInfo.count == CurvedLabelGlyphArcCalculator.glyphCount(in: layout.runs) else {
       assertionFailure("CurvedLabel glyph arc info count must match the CoreText run glyph count.")
       super.draw(rect)
       return
@@ -129,14 +175,15 @@ public final class CurvedLabel: UILabel {
 
     var glyphOffset: CFIndex = 0
 
-    for run in runs {
+    for run in layout.runs {
       let runGlyphCount = CTRunGetGlyphCount(run)
+      let runTextMatrix = CTRunGetTextMatrix(run)
 
       for runGlyphIndex in 0..<runGlyphCount {
         let glyphRange = CFRange(location: runGlyphIndex, length: 1)
         let infoIndex = Int(runGlyphIndex + glyphOffset)
 
-        var glyphAngle = glyphArcInfo[infoIndex].angle
+        var glyphAngle = layout.glyphArcInfo[infoIndex].angle
 
         if !textInside {
           glyphAngle = -glyphAngle
@@ -145,7 +192,7 @@ public final class CurvedLabel: UILabel {
         context.rotate(by: glyphAngle)
 
         // Center this glyph by moving left by half its width.
-        let glyphWidth = glyphArcInfo[infoIndex].width
+        let glyphWidth = layout.glyphArcInfo[infoIndex].width
         let halfGlyphWidth = glyphWidth / 2.0
         let positionForThisGlyph = CGPoint(
           x: textPosition.x - halfGlyphWidth,
@@ -156,7 +203,7 @@ public final class CurvedLabel: UILabel {
         // so offset text position leftwards by this glyph's width.
         textPosition.x -= glyphWidth
 
-        var textMatrix = CTRunGetTextMatrix(run)
+        var textMatrix = runTextMatrix
         textMatrix.tx = positionForThisGlyph.x
         textMatrix.ty = positionForThisGlyph.y
         context.textMatrix = textMatrix
@@ -211,6 +258,60 @@ public final class CurvedLabel: UILabel {
 
   private static func lineHeight(for fontAttribute: Any?) -> CGFloat? {
     (fontAttribute as? UIFont)?.lineHeight
+  }
+
+  private static func immutableAttributedText(_ lhs: NSAttributedString?,
+                                              isEqualTo rhs: NSAttributedString?) -> Bool {
+    switch (lhs, rhs) {
+    case (nil, nil):
+      return true
+    case let (lhs?, rhs?):
+      // Mutable attributed strings can change in place between assignments.
+      guard !(lhs is NSMutableAttributedString),
+            !(rhs is NSMutableAttributedString) else {
+        return false
+      }
+
+      return lhs.isEqual(to: rhs)
+    default:
+      return false
+    }
+  }
+
+  private func layout(for attributedText: NSAttributedString, radius: CGFloat) -> LayoutCache? {
+    if let cachedLayout,
+       cachedLayout.radius == radius,
+       cachedLayout.attributedText.isEqual(to: attributedText) {
+      return cachedLayout
+    }
+
+    let line = CTLineCreateWithAttributedString(attributedText as CFAttributedString)
+    let glyphArcInfo = CurvedLabelGlyphArcCalculator.arcInfo(for: line, radius: radius)
+    guard !glyphArcInfo.isEmpty,
+          let runs = CTLineGetGlyphRuns(line) as? [CTRun],
+          !runs.isEmpty else {
+      cachedLayout = nil
+      return nil
+    }
+
+    let layout = LayoutCache(
+      attributedText: attributedText.copy() as? NSAttributedString ?? attributedText,
+      radius: radius,
+      line: line,
+      runs: runs,
+      glyphArcInfo: glyphArcInfo
+    )
+    cachedLayout = layout
+
+    return layout
+  }
+
+  private func invalidateRenderedText(needsIntrinsicSize: Bool) {
+    cachedLayout = nil
+    if needsIntrinsicSize {
+      invalidateIntrinsicContentSize()
+    }
+    setNeedsDisplay()
   }
 }
 #endif
