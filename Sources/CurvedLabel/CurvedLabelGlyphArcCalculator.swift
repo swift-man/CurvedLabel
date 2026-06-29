@@ -60,29 +60,60 @@ enum CurvedLabelGlyphArcCalculator {
     return glyphArcInfo
   }
 
-  private static func glyphWidths(in line: CTLine) -> [CGFloat] {
+  static func glyphWidths(in line: CTLine) -> [CGFloat] {
     guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return [] }
-    var glyphWidths: [CGFloat] = []
+    var widths: [CGFloat] = []
 
     for run in runs {
-      let runGlyphCount = CTRunGetGlyphCount(run)
+      widths.append(contentsOf: glyphWidths(in: run))
+    }
 
-      for runGlyphIndex in 0..<runGlyphCount {
-        let glyphRange = CFRange(location: runGlyphIndex, length: 1)
-        let width = CGFloat(
-          CTRunGetTypographicBounds(
-            run,
-            glyphRange,
-            nil,
-            nil,
-            nil
+    return widths
+  }
+
+  private static func glyphWidths(in run: CTRun) -> [CGFloat] {
+    let glyphCount = CTRunGetGlyphCount(run)
+    guard glyphCount > 0 else { return [] }
+
+    if let advances = CTRunGetAdvancesPtr(run) {
+      return (0..<glyphCount).map { Swift.abs(advances[$0].width) }
+    }
+
+    var advances = [CGSize](repeating: .zero, count: glyphCount)
+    advances.withUnsafeMutableBufferPointer { buffer in
+      guard let baseAddress = buffer.baseAddress else { return }
+
+      CTRunGetAdvances(
+        run,
+        CFRange(location: 0, length: glyphCount),
+        baseAddress
+      )
+    }
+
+    return advances.map { Swift.abs($0.width) }
+  }
+
+  static func typographicGlyphWidths(in line: CTLine) -> [CGFloat] {
+    guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return [] }
+    var widths: [CGFloat] = []
+
+    for run in runs {
+      for glyphIndex in 0..<CTRunGetGlyphCount(run) {
+        widths.append(
+          CGFloat(
+            CTRunGetTypographicBounds(
+              run,
+              CFRange(location: glyphIndex, length: 1),
+              nil,
+              nil,
+              nil
+            )
           )
         )
-        glyphWidths.append(width)
       }
     }
 
-    return glyphWidths
+    return widths
   }
 
   private static func spacingFactor(for radius: CGFloat) -> CGFloat {
