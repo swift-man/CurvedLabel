@@ -32,6 +32,7 @@ public final class CurvedLabel: UILabel {
   public var textInside: Bool = false {
     didSet {
       if textInside != oldValue {
+        invalidateIntrinsicContentSize()
         setNeedsDisplay()
       }
     }
@@ -47,7 +48,8 @@ public final class CurvedLabel: UILabel {
 
   public override var intrinsicContentSize: CGSize {
     let baseSize = super.intrinsicContentSize
-    let diameter = ceil(radius * 2.0)
+    let textOutset = textInside ? 0.0 : ceil(font?.lineHeight ?? 0.0)
+    let diameter = ceil((radius + textOutset) * 2.0)
     guard diameter > 0.0 else { return baseSize }
 
     return CGSize(
@@ -79,6 +81,9 @@ public final class CurvedLabel: UILabel {
       super.draw(rect)
       return
     }
+
+    // arcInfo is derived from these runs today; keep the guard so future
+    // calculator changes fail gracefully instead of partially rendering glyphs.
     guard glyphArcInfo.count == CurvedLabelGlyphArcCalculator.glyphCount(in: runs) else {
       assertionFailure("CurvedLabel glyph arc info count must match the CoreText run glyph count.")
       super.draw(rect)
@@ -121,10 +126,6 @@ public final class CurvedLabel: UILabel {
       for runGlyphIndex in 0..<runGlyphCount {
         let glyphRange = CFRange(location: runGlyphIndex, length: 1)
         let infoIndex = Int(runGlyphIndex + glyphOffset)
-        guard infoIndex < glyphArcInfo.count else {
-          assertionFailure("CurvedLabel glyph arc info index is out of range.")
-          return
-        }
 
         var glyphAngle = glyphArcInfo[infoIndex].angle
 

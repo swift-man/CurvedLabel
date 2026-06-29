@@ -97,11 +97,40 @@ struct CurvedLabelTests {
     let label = CurvedLabel()
     label.text = "Hi"
     label.font = .systemFont(ofSize: 20)
+    label.textInside = true
 
     label.radius = 80
 
     #expect(label.intrinsicContentSize.width >= 160)
     #expect(label.intrinsicContentSize.height >= 160)
+  }
+
+  @Test
+  @MainActor
+  func outsideTextAddsLineHeightToIntrinsicSize() {
+    let label = CurvedLabel()
+    label.text = "Hi"
+    label.font = .systemFont(ofSize: 20)
+
+    label.radius = 80
+
+    let expectedDiameter = ceil((label.radius + label.font.lineHeight) * 2.0)
+    #expect(label.intrinsicContentSize.width >= expectedDiameter)
+    #expect(label.intrinsicContentSize.height >= expectedDiameter)
+  }
+
+  @Test
+  @MainActor
+  func zeroRadiusRestoresBaseIntrinsicSize() {
+    let label = CurvedLabel()
+    label.text = "Hi"
+    label.font = .systemFont(ofSize: 20)
+    let baseSize = label.intrinsicContentSize
+
+    label.radius = 80
+    label.radius = 0
+
+    #expect(label.intrinsicContentSize == baseSize)
   }
 
   @Test
