@@ -359,6 +359,7 @@ private extension UIImage {
                       minimumDifferingPixels: Int = 32) -> Bool {
     guard let lhs = rgbaPixels,
           let rhs = image.rgbaPixels else {
+      Issue.record("Unable to extract RGBA pixels for image comparison.")
       return false
     }
     guard lhs.count == rhs.count else { return true }

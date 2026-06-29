@@ -79,15 +79,11 @@ enum CurvedLabelGlyphArcCalculator {
     }
 
     var advances = [CGSize](repeating: .zero, count: glyphCount)
-    advances.withUnsafeMutableBufferPointer { buffer in
-      guard let baseAddress = buffer.baseAddress else { return }
-
-      CTRunGetAdvances(
-        run,
-        CFRange(location: 0, length: glyphCount),
-        baseAddress
-      )
-    }
+    CTRunGetAdvances(
+      run,
+      CFRange(location: 0, length: glyphCount),
+      &advances
+    )
 
     return advances.map { Swift.abs($0.width) }
   }

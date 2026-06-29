@@ -29,18 +29,19 @@ public final class CurvedLabel: UILabel {
 
   public override var font: UIFont! {
     didSet {
-      guard !Self.object(font, isEqualTo: oldValue) else { return }
+      guard font != oldValue else { return }
       invalidateRenderedText(needsIntrinsicSize: true)
     }
   }
 
   public override var textColor: UIColor! {
     didSet {
-      guard !Self.object(textColor, isEqualTo: oldValue) else { return }
+      guard textColor != oldValue else { return }
 
       if attributedText == nil {
         invalidateRenderedText(needsIntrinsicSize: false)
       } else {
+        // Attributed text owns foreground attributes; the cached layout can be reused.
         setNeedsDisplay()
       }
     }
@@ -62,9 +63,7 @@ public final class CurvedLabel: UILabel {
       }
 
       storedRadius = clampedRadius
-      cachedLayout = nil
-      invalidateIntrinsicContentSize()
-      setNeedsDisplay()
+      invalidateRenderedText(needsIntrinsicSize: true)
     }
   }
 
@@ -274,17 +273,6 @@ public final class CurvedLabel: UILabel {
       }
 
       return lhs.isEqual(to: rhs)
-    default:
-      return false
-    }
-  }
-
-  private static func object(_ lhs: NSObject?, isEqualTo rhs: NSObject?) -> Bool {
-    switch (lhs, rhs) {
-    case (nil, nil):
-      return true
-    case let (lhs?, rhs?):
-      return lhs.isEqual(rhs)
     default:
       return false
     }
