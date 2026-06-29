@@ -111,6 +111,67 @@ struct CurvedLabelTests {
     }
   }
 
+  @Test
+  func arcInfoMatchesCoreTextGlyphCountForMixedFontRuns() {
+    let line = CTLineCreateWithAttributedString(Self.mixedFontAttributedString())
+    let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
+    let arcInfo = CurvedLabelGlyphArcCalculator.arcInfo(for: line, radius: 140)
+
+    #expect(runs.count >= 3)
+    #expect(!arcInfo.isEmpty)
+    #expect(arcInfo.count == CurvedLabelGlyphArcCalculator.glyphCount(in: runs))
+  }
+
+  @Test
+  func glyphArcInfoPreservesWidthsAcrossMixedFontRuns() {
+    let line = CTLineCreateWithAttributedString(Self.mixedFontAttributedString())
+
+    let glyphWidths = CurvedLabelGlyphArcCalculator.glyphWidths(in: line)
+    let arcInfo = CurvedLabelGlyphArcCalculator.arcInfo(for: line, radius: 140)
+
+    #expect(!glyphWidths.isEmpty)
+    #expect(arcInfo.count == glyphWidths.count)
+    for (info, glyphWidth) in zip(arcInfo, glyphWidths) {
+      #expect(info.width.isApproximatelyEqual(to: glyphWidth))
+    }
+  }
+
+  @Test
+  func mixedFontGlyphWidthsMatchCoreTextTypographicWidths() {
+    let line = CTLineCreateWithAttributedString(Self.mixedFontAttributedString())
+
+    let advanceWidths = CurvedLabelGlyphArcCalculator.glyphWidths(in: line)
+    let typographicWidths = Self.typographicGlyphWidths(in: line)
+
+    #expect(!advanceWidths.isEmpty)
+    #expect(advanceWidths.count == typographicWidths.count)
+    for (advanceWidth, typographicWidth) in zip(advanceWidths, typographicWidths) {
+      #expect(advanceWidth.isApproximatelyEqual(to: typographicWidth))
+    }
+  }
+
+  private static func mixedFontAttributedString() -> CFAttributedString {
+    let attributedString = NSMutableAttributedString(string: "")
+    let segments: [(text: String, font: CTFont)] = [
+      ("Swift ", CTFontCreateWithName("Helvetica" as CFString, 18, nil)),
+      ("123 + ", CTFontCreateWithName("Courier" as CFString, 20, nil)),
+      ("Arc!", CTFontCreateWithName("TimesNewRomanPSMT" as CFString, 22, nil))
+    ]
+
+    for segment in segments {
+      attributedString.append(
+        NSAttributedString(
+          string: segment.text,
+          attributes: [
+            kCTFontAttributeName as NSAttributedString.Key: segment.font
+          ]
+        )
+      )
+    }
+
+    return attributedString as CFAttributedString
+  }
+
   private static func typographicGlyphWidths(in line: CTLine) -> [CGFloat] {
     guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return [] }
     var widths: [CGFloat] = []
