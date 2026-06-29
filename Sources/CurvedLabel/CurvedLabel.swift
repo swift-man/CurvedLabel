@@ -32,23 +32,33 @@ public final class CurvedLabel: UILabel {
 
   public override var textColor: UIColor! {
     didSet {
-      invalidateRenderedText(needsIntrinsicSize: false)
+      if attributedText == nil {
+        invalidateRenderedText(needsIntrinsicSize: false)
+      } else {
+        setNeedsDisplay()
+      }
     }
   }
+
+  private var storedRadius: CGFloat = 0.0
 
   /// The radius of the circular text path, measured in points.
   ///
   /// Negative values are clamped to `0`.
-  public var radius: CGFloat = 0.0 {
-    didSet {
-      if radius < 0.0 {
-        radius = 0.0
+  public var radius: CGFloat {
+    get {
+      storedRadius
+    }
+    set {
+      let clampedRadius = Swift.max(newValue, 0.0)
+      guard storedRadius != clampedRadius else {
+        return
       }
-      if radius != oldValue {
-        cachedLayout = nil
-        invalidateIntrinsicContentSize()
-        setNeedsDisplay()
-      }
+
+      storedRadius = clampedRadius
+      cachedLayout = nil
+      invalidateIntrinsicContentSize()
+      setNeedsDisplay()
     }
   }
 

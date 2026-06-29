@@ -49,7 +49,20 @@ struct CurvedLabelTests {
                                                        radius: 100)
     let firstGlyphHalfWidthAngle: CGFloat = 0.05
     let centerToCenterAngles: CGFloat = 0.15 + 0.25
-    let maxAngle = firstGlyphHalfWidthAngle + centerToCenterAngles
+    let trailingGlyphHalfWidthAngle: CGFloat = 0.15
+    let maxAngle = firstGlyphHalfWidthAngle + centerToCenterAngles + trailingGlyphHalfWidthAngle
+    let expectedFirstAngle = firstGlyphHalfWidthAngle + (CGFloat.pi - maxAngle) / 2.0
+
+    #expect(arcInfo[0].angle.isApproximatelyEqual(to: expectedFirstAngle))
+  }
+
+  @Test
+  func firstGlyphAngleCentersSingleGlyphAcrossTheTopHalfCircle() {
+    let arcInfo = CurvedLabelGlyphArcCalculator.arcInfo(forGlyphWidths: [20],
+                                                       radius: 100)
+    let firstGlyphHalfWidthAngle: CGFloat = 0.1
+    let trailingGlyphHalfWidthAngle: CGFloat = 0.1
+    let maxAngle = firstGlyphHalfWidthAngle + trailingGlyphHalfWidthAngle
     let expectedFirstAngle = firstGlyphHalfWidthAngle + (CGFloat.pi - maxAngle) / 2.0
 
     #expect(arcInfo[0].angle.isApproximatelyEqual(to: expectedFirstAngle))
@@ -89,13 +102,36 @@ struct CurvedLabelTests {
     let line = CTLineCreateWithAttributedString(attributedString as CFAttributedString)
 
     let advanceWidths = CurvedLabelGlyphArcCalculator.glyphWidths(in: line)
-    let typographicWidths = CurvedLabelGlyphArcCalculator.typographicGlyphWidths(in: line)
+    let typographicWidths = Self.typographicGlyphWidths(in: line)
 
     #expect(!advanceWidths.isEmpty)
     #expect(advanceWidths.count == typographicWidths.count)
     for (advanceWidth, typographicWidth) in zip(advanceWidths, typographicWidths) {
       #expect(advanceWidth.isApproximatelyEqual(to: typographicWidth))
     }
+  }
+
+  private static func typographicGlyphWidths(in line: CTLine) -> [CGFloat] {
+    guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return [] }
+    var widths: [CGFloat] = []
+
+    for run in runs {
+      for glyphIndex in 0..<CTRunGetGlyphCount(run) {
+        widths.append(
+          CGFloat(
+            CTRunGetTypographicBounds(
+              run,
+              CFRange(location: glyphIndex, length: 1),
+              nil,
+              nil,
+              nil
+            )
+          )
+        )
+      }
+    }
+
+    return widths
   }
 
 #if canImport(UIKit)

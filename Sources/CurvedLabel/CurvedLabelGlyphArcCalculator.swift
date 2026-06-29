@@ -55,6 +55,11 @@ enum CurvedLabelGlyphArcCalculator {
       }
     }
 
+    let trailingHalfWidth = glyphArcInfo[glyphArcInfo.count - 1].width / 2.0
+    maxAngle += angle(for: trailingHalfWidth,
+                      circumference: circumference,
+                      spacingFactor: compensatingSpacingFactor)
+
     glyphArcInfo[0].angle += (CGFloat.pi - maxAngle) / 2.0
 
     return glyphArcInfo
@@ -62,13 +67,7 @@ enum CurvedLabelGlyphArcCalculator {
 
   static func glyphWidths(in line: CTLine) -> [CGFloat] {
     guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return [] }
-    var widths: [CGFloat] = []
-
-    for run in runs {
-      widths.append(contentsOf: glyphWidths(in: run))
-    }
-
-    return widths
+    return runs.flatMap { glyphWidths(in: $0) }
   }
 
   private static func glyphWidths(in run: CTRun) -> [CGFloat] {
@@ -91,29 +90,6 @@ enum CurvedLabelGlyphArcCalculator {
     }
 
     return advances.map { Swift.abs($0.width) }
-  }
-
-  static func typographicGlyphWidths(in line: CTLine) -> [CGFloat] {
-    guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return [] }
-    var widths: [CGFloat] = []
-
-    for run in runs {
-      for glyphIndex in 0..<CTRunGetGlyphCount(run) {
-        widths.append(
-          CGFloat(
-            CTRunGetTypographicBounds(
-              run,
-              CFRange(location: glyphIndex, length: 1),
-              nil,
-              nil,
-              nil
-            )
-          )
-        )
-      }
-    }
-
-    return widths
   }
 
   private static func spacingFactor(for radius: CGFloat) -> CGFloat {
