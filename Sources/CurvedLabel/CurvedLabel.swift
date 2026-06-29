@@ -14,24 +14,30 @@ import UIKit
 public final class CurvedLabel: UILabel {
   public override var text: String? {
     didSet {
+      guard text != oldValue else { return }
       invalidateRenderedText(needsIntrinsicSize: true)
     }
   }
 
   public override var attributedText: NSAttributedString? {
     didSet {
+      guard !Self.immutableAttributedText(attributedText,
+                                          isEqualTo: oldValue) else { return }
       invalidateRenderedText(needsIntrinsicSize: true)
     }
   }
 
   public override var font: UIFont! {
     didSet {
+      guard !Self.object(font, isEqualTo: oldValue) else { return }
       invalidateRenderedText(needsIntrinsicSize: true)
     }
   }
 
   public override var textColor: UIColor! {
     didSet {
+      guard !Self.object(textColor, isEqualTo: oldValue) else { return }
+
       if attributedText == nil {
         invalidateRenderedText(needsIntrinsicSize: false)
       } else {
@@ -253,6 +259,35 @@ public final class CurvedLabel: UILabel {
 
   private static func lineHeight(for fontAttribute: Any?) -> CGFloat? {
     (fontAttribute as? UIFont)?.lineHeight
+  }
+
+  private static func immutableAttributedText(_ lhs: NSAttributedString?,
+                                              isEqualTo rhs: NSAttributedString?) -> Bool {
+    switch (lhs, rhs) {
+    case (nil, nil):
+      return true
+    case let (lhs?, rhs?):
+      // Mutable attributed strings can change in place between assignments.
+      guard !(lhs is NSMutableAttributedString),
+            !(rhs is NSMutableAttributedString) else {
+        return false
+      }
+
+      return lhs.isEqual(to: rhs)
+    default:
+      return false
+    }
+  }
+
+  private static func object(_ lhs: NSObject?, isEqualTo rhs: NSObject?) -> Bool {
+    switch (lhs, rhs) {
+    case (nil, nil):
+      return true
+    case let (lhs?, rhs?):
+      return lhs.isEqual(rhs)
+    default:
+      return false
+    }
   }
 
   private func layout(for attributedText: NSAttributedString, radius: CGFloat) -> LayoutCache? {
