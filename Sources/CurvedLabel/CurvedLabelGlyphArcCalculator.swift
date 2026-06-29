@@ -1,3 +1,11 @@
+//
+//  CurvedLabelGlyphArcCalculator.swift
+//  CurvedLabel
+//
+//  Created by Gorani on 2026/06/29.
+//  Copyright © 2026 Gorani. All rights reserved.
+//
+
 import CoreGraphics
 import CoreText
 

@@ -1,3 +1,11 @@
+//
+//  CurvedLabel.swift
+//  CurvedLabel
+//
+//  Created by Gorani on 2026/06/29.
+//  Copyright © 2026 Gorani. All rights reserved.
+//
+
 #if canImport(UIKit)
 import CoreText
 import UIKit
@@ -50,7 +58,7 @@ public final class CurvedLabel: UILabel {
     let baseSize = super.intrinsicContentSize
     guard radius > 0.0 else { return baseSize }
 
-    let textOutset = textInside ? 0.0 : ceil(font?.lineHeight ?? 0.0)
+    let textOutset = textInside ? 0.0 : ceil(renderedTextLineHeight)
     let diameter = ceil((radius + textOutset) * 2.0)
 
     return CGSize(
@@ -175,6 +183,34 @@ public final class CurvedLabel: UILabel {
     }
 
     return NSAttributedString(string: text, attributes: attributes)
+  }
+
+  private var renderedTextLineHeight: CGFloat {
+    guard let renderedAttributedText,
+          renderedAttributedText.length > 0 else {
+      return font?.lineHeight ?? 0.0
+    }
+
+    let fullRange = NSRange(location: 0, length: renderedAttributedText.length)
+    var maximumLineHeight: CGFloat = 0.0
+    var attributedFontLength = 0
+
+    renderedAttributedText.enumerateAttribute(.font, in: fullRange) { value, range, _ in
+      guard let lineHeight = Self.lineHeight(for: value) else { return }
+
+      maximumLineHeight = max(maximumLineHeight, lineHeight)
+      attributedFontLength += range.length
+    }
+
+    if attributedFontLength < renderedAttributedText.length {
+      maximumLineHeight = max(maximumLineHeight, font?.lineHeight ?? 0.0)
+    }
+
+    return maximumLineHeight
+  }
+
+  private static func lineHeight(for fontAttribute: Any?) -> CGFloat? {
+    (fontAttribute as? UIFont)?.lineHeight
   }
 }
 #endif

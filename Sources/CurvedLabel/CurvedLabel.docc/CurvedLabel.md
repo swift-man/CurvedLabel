@@ -11,7 +11,7 @@ for plain string rendering.
 
 `radius` defines the circular path and is clamped to `0` when a negative value
 is assigned. When `radius` is greater than `0`, Auto Layout uses at least the
-circle diameter for `intrinsicContentSize`, plus the label font's line height
+circle diameter for `intrinsicContentSize`, plus the rendered text's line height
 when text is drawn outside the circle. `rotation` offsets the path in degrees,
 and `textInside` chooses whether glyphs sit inside or outside the circle.
 
