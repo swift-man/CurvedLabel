@@ -275,14 +275,10 @@ struct CurvedLabelTests {
   @Test
   @MainActor
   func positiveRadiusDrawsCurvedText() {
-    let label = Self.curvedTextLabel()
+    let label = Self.curvedTextLabel(rotation: 180,
+                                     textInside: true)
     let image = Self.renderedImage(from: label)
-
-    let plainLabel = UILabel(frame: label.frame)
-    plainLabel.backgroundColor = label.backgroundColor
-    plainLabel.attributedText = label.attributedText
-
-    let plainImage = Self.renderedImage(from: plainLabel)
+    let plainImage = Self.renderedPlainTextImage(matching: label)
 
     #expect(image.hasVisiblePixels)
     #expect(image.differsVisibly(from: plainImage,
@@ -319,31 +315,44 @@ struct CurvedLabelTests {
   @Test
   @MainActor
   func smallPositiveRadiusStillDrawsCurvedText() {
-    let image = Self.renderedCurvedTextImage(radius: 24,
-                                             text: "Small Radius")
+    let label = Self.curvedTextLabel(radius: 24,
+                                     rotation: 180,
+                                     textInside: true,
+                                     text: "Small Radius",
+                                     frameSize: CGSize(width: 120, height: 120))
+    let image = Self.renderedImage(from: label)
+    let plainImage = Self.renderedPlainTextImage(matching: label)
 
     #expect(image.hasVisiblePixels)
+    #expect(image.differsVisibly(from: plainImage,
+                                 channelTolerance: 8,
+                                 minimumDifferingPixels: 32))
   }
 
   @MainActor
   private static func renderedCurvedTextImage(radius: CGFloat = 80,
-                                              rotation: CGFloat = 180,
-                                              textInside: Bool = true,
-                                              text: String = "Hello World!") -> UIImage {
+                                              rotation: CGFloat = 0,
+                                              textInside: Bool = false,
+                                              text: String = "Hello World!",
+                                              frameSize: CGSize = CGSize(width: 240,
+                                                                         height: 240)) -> UIImage {
     renderedImage(
       from: curvedTextLabel(radius: radius,
                             rotation: rotation,
                             textInside: textInside,
-                            text: text)
+                            text: text,
+                            frameSize: frameSize)
     )
   }
 
   @MainActor
   private static func curvedTextLabel(radius: CGFloat = 80,
-                                      rotation: CGFloat = 180,
-                                      textInside: Bool = true,
-                                      text: String = "Hello World!") -> CurvedLabel {
-    let label = CurvedLabel(frame: CGRect(x: 0, y: 0, width: 240, height: 240))
+                                      rotation: CGFloat = 0,
+                                      textInside: Bool = false,
+                                      text: String = "Hello World!",
+                                      frameSize: CGSize = CGSize(width: 240,
+                                                                 height: 240)) -> CurvedLabel {
+    let label = CurvedLabel(frame: CGRect(origin: .zero, size: frameSize))
     label.backgroundColor = .clear
     label.radius = radius
     label.rotation = rotation
@@ -357,6 +366,15 @@ struct CurvedLabelTests {
     )
 
     return label
+  }
+
+  @MainActor
+  private static func renderedPlainTextImage(matching label: CurvedLabel) -> UIImage {
+    let plainLabel = UILabel(frame: label.frame)
+    plainLabel.backgroundColor = label.backgroundColor
+    plainLabel.attributedText = label.attributedText
+
+    return renderedImage(from: plainLabel)
   }
 
   @MainActor
