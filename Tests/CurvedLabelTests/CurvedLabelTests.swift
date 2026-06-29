@@ -93,6 +93,20 @@ struct CurvedLabelTests {
 
   @Test
   @MainActor
+  func defaultRadiusUsesPlainLabelIntrinsicSize() {
+    let label = CurvedLabel()
+    label.text = "Hi"
+    label.font = .systemFont(ofSize: 20)
+
+    let plainLabel = UILabel()
+    plainLabel.text = label.text
+    plainLabel.font = label.font
+
+    #expect(label.intrinsicContentSize == plainLabel.intrinsicContentSize)
+  }
+
+  @Test
+  @MainActor
   func positiveRadiusDefinesMinimumIntrinsicSize() {
     let label = CurvedLabel()
     label.text = "Hi"
@@ -125,12 +139,15 @@ struct CurvedLabelTests {
     let label = CurvedLabel()
     label.text = "Hi"
     label.font = .systemFont(ofSize: 20)
-    let baseSize = label.intrinsicContentSize
+
+    let plainLabel = UILabel()
+    plainLabel.text = label.text
+    plainLabel.font = label.font
 
     label.radius = 80
     label.radius = 0
 
-    #expect(label.intrinsicContentSize == baseSize)
+    #expect(label.intrinsicContentSize == plainLabel.intrinsicContentSize)
   }
 
   @Test

@@ -48,9 +48,10 @@ public final class CurvedLabel: UILabel {
 
   public override var intrinsicContentSize: CGSize {
     let baseSize = super.intrinsicContentSize
+    guard radius > 0.0 else { return baseSize }
+
     let textOutset = textInside ? 0.0 : ceil(font?.lineHeight ?? 0.0)
     let diameter = ceil((radius + textOutset) * 2.0)
-    guard diameter > 0.0 else { return baseSize }
 
     return CGSize(
       width: max(baseSize.width, diameter),
