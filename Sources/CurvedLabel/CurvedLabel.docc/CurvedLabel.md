@@ -9,8 +9,11 @@ as badges, dials, stickers, or decorative controls. The label uses its
 `attributedText` when present and falls back to `text`, `font`, and `textColor`
 for plain string rendering.
 
-`radius` defines the circular path, `rotation` offsets the path in degrees, and
-`textInside` chooses whether glyphs sit inside or outside the circle.
+`radius` defines the circular path and is clamped to `0` when a negative value
+is assigned. When `radius` is greater than `0`, Auto Layout uses at least the
+circle diameter for `intrinsicContentSize`. `rotation` offsets the path in
+degrees, and `textInside` chooses whether glyphs sit inside or outside the
+circle.
 
 ## Installation
 

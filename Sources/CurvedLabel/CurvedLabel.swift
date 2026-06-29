@@ -5,9 +5,15 @@ import UIKit
 /// A `UILabel` subclass that draws attributed text along a circular arc.
 public final class CurvedLabel: UILabel {
   /// The radius of the circular text path, measured in points.
+  ///
+  /// Negative values are clamped to `0`.
   public var radius: CGFloat = 0.0 {
     didSet {
+      if radius < 0.0 {
+        radius = 0.0
+      }
       if radius != oldValue {
+        invalidateIntrinsicContentSize()
         setNeedsDisplay()
       }
     }
@@ -39,8 +45,19 @@ public final class CurvedLabel: UILabel {
     super.init(frame: frame)
   }
 
+  public override var intrinsicContentSize: CGSize {
+    let baseSize = super.intrinsicContentSize
+    let diameter = ceil(radius * 2.0)
+    guard diameter > 0.0 else { return baseSize }
+
+    return CGSize(
+      width: max(baseSize.width, diameter),
+      height: max(baseSize.height, diameter)
+    )
+  }
+
   public override func draw(_ rect: CGRect) {
-    let radius = Swift.abs(self.radius)
+    let radius = self.radius
     guard radius > 0.0 else {
       super.draw(rect)
       return
@@ -59,6 +76,11 @@ public final class CurvedLabel: UILabel {
     guard !glyphArcInfo.isEmpty,
           let runs = CTLineGetGlyphRuns(line) as? [CTRun],
           !runs.isEmpty else {
+      super.draw(rect)
+      return
+    }
+    guard glyphArcInfo.count == CurvedLabelGlyphArcCalculator.glyphCount(in: runs) else {
+      assertionFailure("CurvedLabel glyph arc info count must match the CoreText run glyph count.")
       super.draw(rect)
       return
     }
@@ -99,7 +121,10 @@ public final class CurvedLabel: UILabel {
       for runGlyphIndex in 0..<runGlyphCount {
         let glyphRange = CFRange(location: runGlyphIndex, length: 1)
         let infoIndex = Int(runGlyphIndex + glyphOffset)
-        guard infoIndex < glyphArcInfo.count else { return }
+        guard infoIndex < glyphArcInfo.count else {
+          assertionFailure("CurvedLabel glyph arc info index is out of range.")
+          return
+        }
 
         var glyphAngle = glyphArcInfo[infoIndex].angle
 

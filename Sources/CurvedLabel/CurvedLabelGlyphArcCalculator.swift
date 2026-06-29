@@ -12,6 +12,10 @@ enum CurvedLabelGlyphArcCalculator {
     return arcInfo(forGlyphWidths: glyphWidths, radius: radius)
   }
 
+  static func glyphCount(in runs: [CTRun]) -> Int {
+    runs.reduce(0) { $0 + CTRunGetGlyphCount($1) }
+  }
+
   static func arcInfo(forGlyphWidths glyphWidths: [CGFloat],
                       radius: CGFloat) -> [CurvedLabelGlyphArcInfo] {
     guard radius > 0.0, !glyphWidths.isEmpty else { return [] }

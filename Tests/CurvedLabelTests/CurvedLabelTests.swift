@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreText
 import Foundation
 import Testing
 @testable import CurvedLabel
@@ -57,6 +58,17 @@ struct CurvedLabelTests {
     #expect(smallRadiusArcInfo[1].angle.isApproximatelyEqual(to: 0.5))
   }
 
+  @Test
+  func arcInfoMatchesCoreTextRunGlyphCount() {
+    let attributedString = NSAttributedString(string: "Hello World!")
+    let line = CTLineCreateWithAttributedString(attributedString as CFAttributedString)
+    let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
+    let arcInfo = CurvedLabelGlyphArcCalculator.arcInfo(for: line, radius: 120)
+
+    #expect(!runs.isEmpty)
+    #expect(arcInfo.count == CurvedLabelGlyphArcCalculator.glyphCount(in: runs))
+  }
+
 #if canImport(UIKit)
   @Test
   @MainActor
@@ -71,12 +83,58 @@ struct CurvedLabelTests {
 
   @Test
   @MainActor
+  func negativeRadiusClampsToZero() {
+    let label = CurvedLabel()
+
+    label.radius = -12
+
+    #expect(label.radius == 0)
+  }
+
+  @Test
+  @MainActor
+  func positiveRadiusDefinesMinimumIntrinsicSize() {
+    let label = CurvedLabel()
+    label.text = "Hi"
+    label.font = .systemFont(ofSize: 20)
+
+    label.radius = 80
+
+    #expect(label.intrinsicContentSize.width >= 160)
+    #expect(label.intrinsicContentSize.height >= 160)
+  }
+
+  @Test
+  @MainActor
   func zeroRadiusFallsBackToPlainLabelRendering() {
     let label = CurvedLabel(frame: CGRect(x: 0, y: 0, width: 160, height: 60))
     label.backgroundColor = .clear
     label.font = .systemFont(ofSize: 32)
     label.textColor = .black
     label.text = "Hello"
+
+    let image = UIGraphicsImageRenderer(size: label.bounds.size).image { _ in
+      label.draw(label.bounds)
+    }
+
+    #expect(image.hasVisiblePixels)
+  }
+
+  @Test
+  @MainActor
+  func positiveRadiusDrawsCurvedText() {
+    let label = CurvedLabel(frame: CGRect(x: 0, y: 0, width: 240, height: 240))
+    label.backgroundColor = .clear
+    label.radius = 80
+    label.rotation = 180
+    label.textInside = true
+    label.attributedText = NSAttributedString(
+      string: "Hello World!",
+      attributes: [
+        .font: UIFont.systemFont(ofSize: 28),
+        .foregroundColor: UIColor.black
+      ]
+    )
 
     let image = UIGraphicsImageRenderer(size: label.bounds.size).image { _ in
       label.draw(label.bounds)

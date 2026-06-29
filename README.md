@@ -36,8 +36,11 @@ label.attributedText = NSAttributedString(
 )
 ```
 
-`radius` controls the circular path in points, `rotation` is measured in
-degrees, and `textInside` switches the glyphs to the inner side of the circle.
+`radius` controls the circular path in points and is clamped to `0` when a
+negative value is assigned. When `radius` is greater than `0`, Auto Layout uses
+at least the circle diameter for `intrinsicContentSize`. `rotation` is measured
+in degrees, and `textInside` switches the glyphs to the inner side of the
+circle.
 
 ## Documentation
 
