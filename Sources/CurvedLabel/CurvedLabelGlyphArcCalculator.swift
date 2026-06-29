@@ -15,6 +15,9 @@ struct CurvedLabelGlyphArcInfo: Equatable {
 }
 
 enum CurvedLabelGlyphArcCalculator {
+  private static let smallRadiusSpacingThreshold: CGFloat = 50.0
+  private static let maximumSmallRadiusSpacingBonus: CGFloat = 0.5
+
   static func arcInfo(for line: CTLine, radius: CGFloat) -> [CurvedLabelGlyphArcInfo] {
     let glyphWidths = glyphWidths(in: line)
     return arcInfo(forGlyphWidths: glyphWidths, radius: radius)
@@ -89,7 +92,10 @@ enum CurvedLabelGlyphArcCalculator {
   }
 
   private static func spacingFactor(for radius: CGFloat) -> CGFloat {
-    radius < 50.0 ? 1.0 + (1.0 - radius / 50.0) / 2.0 : 1.0
+    guard radius < smallRadiusSpacingThreshold else { return 1.0 }
+
+    let normalizedRadius = radius / smallRadiusSpacingThreshold
+    return 1.0 + (1.0 - normalizedRadius) * maximumSmallRadiusSpacingBonus
   }
 
   private static func angle(for width: CGFloat,
