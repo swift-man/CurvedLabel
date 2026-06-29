@@ -1,3 +1,11 @@
+//
+//  CurvedLabelGlyphArcCalculator.swift
+//  CurvedLabel
+//
+//  Created by Gorani on 2026/06/29.
+//  Copyright © 2026 Gorani. All rights reserved.
+//
+
 import CoreGraphics
 import CoreText
 
@@ -10,6 +18,10 @@ enum CurvedLabelGlyphArcCalculator {
   static func arcInfo(for line: CTLine, radius: CGFloat) -> [CurvedLabelGlyphArcInfo] {
     let glyphWidths = glyphWidths(in: line)
     return arcInfo(forGlyphWidths: glyphWidths, radius: radius)
+  }
+
+  static func glyphCount(in runs: [CTRun]) -> Int {
+    runs.reduce(0) { $0 + CTRunGetGlyphCount($1) }
   }
 
   static func arcInfo(forGlyphWidths glyphWidths: [CGFloat],

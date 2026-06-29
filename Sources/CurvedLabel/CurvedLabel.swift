@@ -1,3 +1,11 @@
+//
+//  CurvedLabel.swift
+//  CurvedLabel
+//
+//  Created by Gorani on 2026/06/29.
+//  Copyright © 2026 Gorani. All rights reserved.
+//
+
 #if canImport(UIKit)
 import CoreText
 import UIKit
@@ -5,9 +13,15 @@ import UIKit
 /// A `UILabel` subclass that draws attributed text along a circular arc.
 public final class CurvedLabel: UILabel {
   /// The radius of the circular text path, measured in points.
+  ///
+  /// Negative values are clamped to `0`.
   public var radius: CGFloat = 0.0 {
     didSet {
+      if radius < 0.0 {
+        radius = 0.0
+      }
       if radius != oldValue {
+        invalidateIntrinsicContentSize()
         setNeedsDisplay()
       }
     }
@@ -26,6 +40,7 @@ public final class CurvedLabel: UILabel {
   public var textInside: Bool = false {
     didSet {
       if textInside != oldValue {
+        invalidateIntrinsicContentSize()
         setNeedsDisplay()
       }
     }
@@ -39,8 +54,21 @@ public final class CurvedLabel: UILabel {
     super.init(frame: frame)
   }
 
+  public override var intrinsicContentSize: CGSize {
+    let baseSize = super.intrinsicContentSize
+    guard radius > 0.0 else { return baseSize }
+
+    let textOutset = textInside ? 0.0 : ceil(renderedTextLineHeight)
+    let diameter = ceil((radius + textOutset) * 2.0)
+
+    return CGSize(
+      width: max(baseSize.width, diameter),
+      height: max(baseSize.height, diameter)
+    )
+  }
+
   public override func draw(_ rect: CGRect) {
-    let radius = Swift.abs(self.radius)
+    let radius = self.radius
     guard radius > 0.0 else {
       super.draw(rect)
       return
@@ -59,6 +87,14 @@ public final class CurvedLabel: UILabel {
     guard !glyphArcInfo.isEmpty,
           let runs = CTLineGetGlyphRuns(line) as? [CTRun],
           !runs.isEmpty else {
+      super.draw(rect)
+      return
+    }
+
+    // arcInfo is derived from these runs today; keep the guard so future
+    // calculator changes fail gracefully instead of partially rendering glyphs.
+    guard glyphArcInfo.count == CurvedLabelGlyphArcCalculator.glyphCount(in: runs) else {
+      assertionFailure("CurvedLabel glyph arc info count must match the CoreText run glyph count.")
       super.draw(rect)
       return
     }
@@ -99,7 +135,6 @@ public final class CurvedLabel: UILabel {
       for runGlyphIndex in 0..<runGlyphCount {
         let glyphRange = CFRange(location: runGlyphIndex, length: 1)
         let infoIndex = Int(runGlyphIndex + glyphOffset)
-        guard infoIndex < glyphArcInfo.count else { return }
 
         var glyphAngle = glyphArcInfo[infoIndex].angle
 
@@ -148,6 +183,34 @@ public final class CurvedLabel: UILabel {
     }
 
     return NSAttributedString(string: text, attributes: attributes)
+  }
+
+  private var renderedTextLineHeight: CGFloat {
+    guard let renderedAttributedText,
+          renderedAttributedText.length > 0 else {
+      return font?.lineHeight ?? 0.0
+    }
+
+    let fullRange = NSRange(location: 0, length: renderedAttributedText.length)
+    var maximumLineHeight: CGFloat = 0.0
+    var attributedFontLength = 0
+
+    renderedAttributedText.enumerateAttribute(.font, in: fullRange) { value, range, _ in
+      guard let lineHeight = Self.lineHeight(for: value) else { return }
+
+      maximumLineHeight = max(maximumLineHeight, lineHeight)
+      attributedFontLength += range.length
+    }
+
+    if attributedFontLength < renderedAttributedText.length {
+      maximumLineHeight = max(maximumLineHeight, font?.lineHeight ?? 0.0)
+    }
+
+    return maximumLineHeight
+  }
+
+  private static func lineHeight(for fontAttribute: Any?) -> CGFloat? {
+    (fontAttribute as? UIFont)?.lineHeight
   }
 }
 #endif
