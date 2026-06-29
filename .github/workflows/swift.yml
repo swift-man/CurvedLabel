@@ -1,0 +1,46 @@
+name: Swift
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build iOS
+        run: xcodebuild build -scheme CurvedLabel -destination 'generic/platform=iOS'
+
+      - name: Build tvOS
+        run: |
+          if ! xcodebuild -scheme CurvedLabel -destination 'generic/platform=tvOS' -showBuildSettings >/tmp/tvos-build-settings.log 2>&1; then
+            if grep -Eq 'Unable to find a destination matching|tvOS .* is not installed' /tmp/tvos-build-settings.log; then
+              echo "tvOS destination unavailable on this runner; skipping tvOS build"
+              exit 0
+            fi
+            cat /tmp/tvos-build-settings.log
+            exit 1
+          fi
+          xcodebuild build -scheme CurvedLabel -destination 'generic/platform=tvOS'
+
+      - name: Test iOS
+        run: |
+          udid="$(xcrun simctl list devices available iOS | grep 'iPhone' | grep -m 1 -Eo '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' || true)"
+          if [ -z "$udid" ]; then
+            echo "No available iPhone simulator found"
+            exit 1
+          fi
+          xcodebuild test -scheme CurvedLabel -destination "platform=iOS Simulator,id=$udid"
+
+      - name: Run tests
+        run: swift test -v
