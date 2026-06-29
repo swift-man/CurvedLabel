@@ -172,6 +172,7 @@ public final class CurvedLabel: UILabel {
 
     for run in layout.runs {
       let runGlyphCount = CTRunGetGlyphCount(run)
+      let runTextMatrix = CTRunGetTextMatrix(run)
 
       for runGlyphIndex in 0..<runGlyphCount {
         let glyphRange = CFRange(location: runGlyphIndex, length: 1)
@@ -197,7 +198,7 @@ public final class CurvedLabel: UILabel {
         // so offset text position leftwards by this glyph's width.
         textPosition.x -= glyphWidth
 
-        var textMatrix = CTRunGetTextMatrix(run)
+        var textMatrix = runTextMatrix
         textMatrix.tx = positionForThisGlyph.x
         textMatrix.ty = positionForThisGlyph.y
         context.textMatrix = textMatrix
