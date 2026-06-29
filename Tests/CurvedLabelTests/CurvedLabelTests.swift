@@ -244,19 +244,28 @@ private extension UIImage {
     let height = cgImage.height
     var pixels = [UInt8](repeating: 0, count: width * height * 4)
     let colorSpace = CGColorSpaceCreateDeviceRGB()
-    guard let context = CGContext(
-      data: &pixels,
-      width: width,
-      height: height,
-      bitsPerComponent: 8,
-      bytesPerRow: width * 4,
-      space: colorSpace,
-      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-    ) else {
+    let didDraw = pixels.withUnsafeMutableBytes { buffer in
+      guard let baseAddress = buffer.baseAddress,
+            let context = CGContext(
+              data: baseAddress,
+              width: width,
+              height: height,
+              bitsPerComponent: 8,
+              bytesPerRow: width * 4,
+              space: colorSpace,
+              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else {
+        return false
+      }
+
+      context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+      return true
+    }
+
+    guard didDraw else {
       return nil
     }
 
-    context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
     return pixels
   }
 
@@ -268,10 +277,10 @@ private extension UIImage {
 
   func differsVisibly(from image: UIImage) -> Bool {
     guard let lhs = rgbaPixels,
-          let rhs = image.rgbaPixels,
-          lhs.count == rhs.count else {
+          let rhs = image.rgbaPixels else {
       return false
     }
+    guard lhs.count == rhs.count else { return true }
 
     var differingPixels = 0
     for offset in stride(from: 0, to: lhs.count, by: 4) {
